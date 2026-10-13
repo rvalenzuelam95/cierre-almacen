@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cierre del día · Almacén</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8; --surface:#FFFFFF; --ink:#1B2B40; --muted:#5A6878; --line:#D5DCE4;
+  --blue:#1F4E8C; --green:#1E7A46; --green-bg:#E3F3EA; --red:#B3261E; --red-bg:#FBE7E5;
+  --amber:#9A5B00; --amber-bg:#FFF1D6; --bank:#3F6FB5; --cash:#2E8B57; --btn-ink:#FFFFFF;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10161E; --surface:#18212C; --ink:#E8EEF5; --muted:#9AA8B8; --line:#2C3A4A;
+    --blue:#8DB4F0; --green:#6BD39A; --green-bg:#173526; --red:#FF8A80; --red-bg:#3D1D1B;
+    --amber:#F4C065; --amber-bg:#3A2C12; --bank:#7FA6E6; --cash:#5CC48A; --btn-ink:#0D1520;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10161E; --surface:#18212C; --ink:#E8EEF5; --muted:#9AA8B8; --line:#2C3A4A;
+  --blue:#8DB4F0; --green:#6BD39A; --green-bg:#173526; --red:#FF8A80; --red-bg:#3D1D1B;
+  --amber:#F4C065; --amber-bg:#3A2C12; --bank:#7FA6E6; --cash:#5CC48A; --btn-ink:#0D1520;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  font-size:19px;line-height:1.45}
+main{max-width:560px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.75rem;line-height:1.15;margin:4px 0 4px}
+.sub{color:var(--muted);margin:0 0 18px}
+.store-pick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.store-pick button{font:inherit;font-weight:700;font-size:1.05rem;line-height:1.2;padding:16px 10px;border-radius:12px;border:2px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer}
+.store-pick button[aria-pressed="true"]{border-color:var(--blue);box-shadow:inset 0 0 0 2px var(--blue);color:var(--blue)}
+.store-pick button[aria-pressed="true"]::before{content:"\2714  "}
+.date-row{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.date-row label{font-weight:700}
+input[type=date]{font:inherit;font-size:1.05rem;padding:10px 12px;border:2px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+section.group{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px;border-left-width:6px}
+section.group.in{border-left-color:var(--cash)}
+section.group.out{border-left-color:var(--red)}
+section.group.base{border-left-color:var(--blue)}
+section.group.home{border-left-color:var(--amber)}
+.group h2{font-size:1.2rem;margin:0 0 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tag{font-size:.85rem;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.tag.in{background:var(--green-bg);color:var(--green)}
+.tag.out{background:var(--red-bg);color:var(--red)}
+.tag.home{background:var(--amber-bg);color:var(--amber)}
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-weight:700;margin-bottom:2px}
+.field .hint{display:block;color:var(--muted);font-size:.88rem;margin-bottom:6px}
+.money{display:flex;align-items:center;border:2px solid var(--line);border-radius:10px;background:var(--bg);overflow:hidden}
+.money:focus-within{border-color:var(--blue)}
+.money span{padding:0 10px 0 14px;font-weight:700;color:var(--muted);font-size:1.2rem}
+.money input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:inherit;font-size:1.45rem;font-weight:700;padding:12px 12px 12px 0;outline:none}
+.field.missing .money{border-color:var(--red)}
+.btn{display:block;width:100%;font:inherit;font-weight:700;font-size:1.2rem;padding:16px;border-radius:12px;border:0;cursor:pointer}
+.btn:focus-visible,.store-pick button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.btn.primary{background:var(--blue);color:var(--btn-ink)}
+.btn.ghost{background:transparent;color:var(--blue);border:2px solid var(--blue);margin-top:10px}
+.err{color:var(--red);font-weight:700;margin:10px 0 0;min-height:1em}
+
+#results{display:none}
+.verdict{border-radius:16px;padding:22px 18px;margin-bottom:16px;text-align:center}
+.verdict.ok{background:var(--green-bg);color:var(--green)}
+.verdict.bad{background:var(--red-bg);color:var(--red)}
+.verdict.warn{background:var(--amber-bg);color:var(--amber)}
+.verdict .icon{font-size:2.6rem;line-height:1}
+.verdict .big{font-size:2.3rem;font-weight:700;margin:6px 0 2px;line-height:1.1}
+.verdict .what{font-size:1.15rem;font-weight:700}
+.verdict .detail{color:var(--ink);margin-top:10px;font-size:.98rem}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.card h3{margin:0 0 4px;font-size:1.1rem}
+.card .lead{font-size:1.9rem;font-weight:700;margin:2px 0 10px}
+.card p.note{color:var(--muted);font-size:.9rem;margin:8px 0 0}
+.track{position:relative;height:22px;background:var(--bg);border-radius:999px;margin:28px 0 30px;border:1px solid var(--line)}
+.fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
+.mark{position:absolute;top:-24px;bottom:-24px;width:0;border-left:2px dashed var(--muted)}
+.mark b{position:absolute;white-space:nowrap;font-size:.78rem;color:var(--muted);font-weight:700}
+.mark.top b{top:0;transform:translateX(-50%)}
+.mark.bot b{bottom:0;transform:translateX(-50%)}
+.split{display:flex;height:34px;border-radius:10px;overflow:hidden;margin:10px 0}
+.legend{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.legend div{display:flex;align-items:center;gap:8px;font-weight:700}
+.dot{width:14px;height:14px;border-radius:4px;display:inline-block}
+.rows{margin:6px 0 0;padding:0;list-style:none}
+.rows li{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.rows li:last-child{border-bottom:0}
+.rows .bar{grid-column:1/-1;height:8px;background:var(--bg);border-radius:999px;overflow:hidden}
+.rows .bar i{display:block;height:100%;background:var(--red);border-radius:999px}
+.rows strong{white-space:nowrap}
+
+/* Bloque para anotar */
+.note-box{background:var(--surface);border:3px solid var(--ink);border-radius:14px;padding:16px;margin-bottom:16px}
+.note-box h3{margin:0;font-size:1.25rem}
+.note-box .who{color:var(--muted);margin:2px 0 10px;font-weight:700}
+.note-box ol{margin:0;padding:0;list-style:none;counter-reset:n}
+.note-box li{counter-increment:n;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:12px 0;border-bottom:1px dashed var(--line)}
+.note-box li:last-child{border-bottom:0}
+.note-box li::before{content:counter(n);width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--surface);display:grid;place-items:center;font-weight:700;font-size:.95rem}
+.note-box li span{font-weight:700}
+.note-box li b{font-size:1.4rem;white-space:nowrap}
+.note-box li.falta b{color:var(--red)}
+.note-box li.sobra b{color:var(--amber)}
+@media (prefers-reduced-motion: no-preference){
+  .verdict{animation:pop .35s ease-out}
+  @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+}
+</style>
+</head>
+<body>
+<main>
+  <div id="formView">
+    <h1>Cierre del día</h1>
+    <p class="sub">Copie los números de la hoja. Solo números, sin puntos ni signos.</p>
+
+    <div class="store-pick" role="group" aria-label="Elija el almacén">
+      <button type="button" data-store="torres" aria-pressed="false">Almacén Las Torres</button>
+      <button type="button" data-store="casa" aria-pressed="false">Almacén Casa</button>
+    </div>
+
+    <div class="date-row">
+      <label for="fecha">Día</label>
+      <input type="date" id="fecha">
+    </div>
+
+    <div id="groups"></div>
+
+    <button class="btn primary" id="calc">Ver resultado del día</button>
+    <p class="err" id="err" role="alert"></p>
+  </div>
+
+  <div id="results" aria-live="polite"></div>
+</main>
+
+<script>
+/* ===== Ajustes generales (cifras del mes analizado) ===== */
+const CONFIG_BASE = {
+  tolerancia: 2000,          // diferencia de caja que se considera "cuadra"
+  equilibrioDia: 134000,     // venta diaria mínima para no perder
+  promedioDia: 219000,       // venta diaria promedio del mes analizado
+  margenBruto: 1 - 3646270/6564290,              // ~44%
+  costoFijoDia: (1179390 + 95550 + 235000) / 30  // arriendo/otros + préstamo + IVA/PPM
+};
+
+/* Almacenes. En "ajustes" se pueden poner cifras propias, ej. {promedioDia: 150000} */
+const STORES = {
+  torres: {nombre:'Almacén Las Torres', ajustes:{}},
+  casa:   {nombre:'Almacén Casa', ajustes:{}}
+};
+
+const GROUPS = [
+  {cls:'base', title:'Al abrir', fields:[
+    {k:'abre', label:'Plata en la caja al abrir', hint:'Cuente el cajón antes de la primera venta', req:true}
+  ]},
+  {cls:'in', title:'Lo que vendieron', tag:'Entra', fields:[
+    {k:'efectivo', label:'Venta en efectivo'},
+    {k:'debito', label:'Venta con débito', hint:'Del cierre de la máquina'},
+    {k:'credito', label:'Venta con crédito', hint:'Del cierre de la máquina'},
+    {k:'transf', label:'Transferencias recibidas'}
+  ]},
+  {cls:'out', title:'Lo que salió de la caja', tag:'Sale', fields:[
+    {k:'prov', label:'Pagos a proveedores'},
+    {k:'gastos', label:'Otros gastos del local', hint:'Gas, bolsas, arreglos, etc.'},
+    {k:'casa', label:'Plata sacada para la casa'}
+  ]},
+  {cls:'home', title:'Para la casa', tag:'No es plata', fields:[
+    {k:'merc', label:'Mercadería llevada a la casa', hint:'Valor aproximado de lo que se llevaron'}
+  ]},
+  {cls:'base', title:'Al cerrar', fields:[
+    {k:'cierra', label:'Plata en la caja al cerrar', hint:'Cuente todo el cajón', req:true}
+  ]}
+];
+
+const LAST_STORE_KEY = 'almacen_tienda_actual';
+let tienda = null;
+let CONFIG = CONFIG_BASE;
+
+const fmt = n => '$' + Math.round(n).toLocaleString('es-CL');
+const clean = s => (s || '').replace(/\D/g, '');
+const num = id => Number(clean(document.getElementById('f_' + id).value)) || 0;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const allFields = () => GROUPS.flatMap(g => g.fields);
+
+function todayISO(){
+  const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0,10);
+}
+function niceDate(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  return new Date(y, m-1, d).toLocaleDateString('es-CL', {weekday:'long', day:'numeric', month:'long'});
+}
+
+/* ===== Formulario ===== */
+function buildForm(){
+  document.getElementById('groups').innerHTML = GROUPS.map(g => `
+    <section class="group ${g.cls}">
+      <h2>${g.title}${g.tag ? `<span class="tag ${g.cls}">${g.tag}</span>` : ''}</h2>
+      ${g.fields.map(f => `
+        <div class="field" id="w_${f.k}">
+          <label for="f_${f.k}">${f.label}</label>
+          ${f.hint ? `<span class="hint">${f.hint}</span>` : ''}
+          <div class="money"><span>$</span>
+            <input id="f_${f.k}" type="text" inputmode="numeric" autocomplete="off" placeholder="0">
+          </div>
+        </div>`).join('')}
+    </section>`).join('');
+
+  document.querySelectorAll('#groups input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const d = clean(inp.value).replace(/^0+(?=\d)/, '');
+      inp.value = d ? Number(d).toLocaleString('es-CL') : '';
+      inp.closest('.field').classList.remove('missing');
+    });
+  });
+
+  document.getElementById('fecha').value = todayISO();
+  document.querySelectorAll('.store-pick button').forEach(b =>
+    b.addEventListener('click', () => selectStore(b.dataset.store)));
+  let last = null; try{ last = localStorage.getItem(LAST_STORE_KEY); }catch(e){}
+  if (last && STORES[last]) selectStore(last);
+}
+
+function selectStore(k){
+  tienda = k;
+  CONFIG = Object.assign({}, CONFIG_BASE, STORES[k].ajustes);
+  document.querySelectorAll('.store-pick button').forEach(b =>
+    b.setAttribute('aria-pressed', b.dataset.store === k ? 'true' : 'false'));
+  try{ localStorage.setItem(LAST_STORE_KEY, k); }catch(e){}
+  document.getElementById('err').textContent = '';
+}
+
+/* ===== Cálculos ===== */
+function compute(v){
+  const sale = v.prov + v.gastos + v.casa;
+  const esperada = v.abre + v.efectivo - sale;
+  const dif = v.cierra - esperada;
+  const banco = v.debito + v.credito + v.transf;
+  const venta = v.efectivo + banco;
+  const ganancia = venta * CONFIG.margenBruto - CONFIG.costoFijoDia;
+  const cuadra = Math.abs(dif) <= CONFIG.tolerancia;
+  return {
+    sale, esperada, dif, banco, venta, ganancia, cuadra,
+    falta: (!cuadra && dif < 0) ? -dif : 0,
+    sobra: (!cuadra && dif > 0) ? dif : 0,
+    paraCasa: v.casa + v.merc
+  };
+}
+
+document.getElementById('calc').addEventListener('click', () => {
+  const err = document.getElementById('err');
+  if (!tienda){
+    err.textContent = 'Primero elija el almacén, arriba de todo.';
+    window.scrollTo({top:0, behavior:'smooth'});
+    return;
+  }
+  const missing = allFields().filter(f => f.req && !clean(document.getElementById('f_' + f.k).value));
+  missing.forEach(f => document.getElementById('w_' + f.k).classList.add('missing'));
+  if (missing.length){
+    err.textContent = 'Falta: ' + missing.map(f => f.label.toLowerCase()).join(' y ') + '. Si estaba vacía, escriba 0.';
+    document.getElementById('w_' + missing[0].k).scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  err.textContent = '';
+  const v = {}; allFields().forEach(f => v[f.k] = num(f.k));
+  showResults(document.getElementById('fecha').value || todayISO(), v, compute(v));
+});
+
+/* ===== Resultados ===== */
+function showResults(fecha, v, r){
+  let cls, icon, what, big;
+  if (r.cuadra){ cls='ok'; icon='✔'; what='La caja cuadra'; big = r.dif === 0 ? 'Exacto' : fmt(Math.abs(r.dif)) + (r.dif < 0 ? ' menos' : ' más'); }
+  else if (r.dif < 0){ cls='bad'; icon='✖'; what='Falta plata en la caja'; big = fmt(r.falta); }
+  else { cls='warn'; icon='!'; what='Sobra plata en la caja'; big = fmt(r.sobra); }
+
+  const max = Math.max(r.venta, CONFIG.promedioDia) * 1.2;
+  const pct = x => Math.min(100, x / max * 100);
+  const ventaColor = r.venta >= CONFIG.equilibrioDia ? 'var(--green)' : 'var(--red)';
+  const ventaMsg = r.venta >= CONFIG.promedioDia ? 'Sobre el promedio del mes.'
+    : r.venta >= CONFIG.equilibrioDia ? 'Bajo el promedio, pero sobre el mínimo para no perder.'
+    : 'Bajo el mínimo para cubrir los gastos del día.';
+
+  const tot = r.venta || 1;
+  const outs = [
+    ['Proveedores', v.prov], ['Gastos del local', v.gastos],
+    ['Plata para la casa', v.casa]
+  ];
+  const maxOut = Math.max(1, ...outs.map(o => o[1]));
+
+  const el = document.getElementById('results');
+  el.innerHTML = `
+    <h1>Resultado</h1>
+    <p class="sub"><b>${esc(STORES[tienda].nombre)}</b><br>${esc(niceDate(fecha))}</p>
+
+    <div class="verdict ${cls}">
+      <div class="icon" aria-hidden="true">${icon}</div>
+      <div class="what">${what}</div>
+      <div class="big">${big}</div>
+      <div class="detail">Debería haber <b>${fmt(r.esperada)}</b> y contaron <b>${fmt(v.cierra)}</b>.</div>
+    </div>
+
+    <div class="note-box">
+      <h3>Anote en la hoja</h3>
+      <p class="who">${esc(STORES[tienda].nombre)}, ${esc(niceDate(fecha))}</p>
+      <ol>
+        <li class="${r.falta ? 'falta' : ''}"><span>Faltó en la caja</span><b>${fmt(r.falta)}</b></li>
+        <li class="${r.sobra ? 'sobra' : ''}"><span>Sobró en la caja</span><b>${fmt(r.sobra)}</b></li>
+        <li><span>Venta del almacén</span><b>${fmt(r.venta)}</b></li>
+        <li><span>Venta que quedó en el banco</span><b>${fmt(r.banco)}</b></li>
+        <li><span>Para la casa (plata + mercadería)</span><b>${fmt(r.paraCasa)}</b></li>
+      </ol>
+      <p class="note" style="color:var(--muted);font-size:.9rem;margin:8px 0 0">Faltó y sobró van en columnas separadas. No los reste entre sí.</p>
+    </div>
+
+    <div class="card">
+      <h3>Venta del almacén</h3>
+      <div class="lead">${fmt(r.venta)}</div>
+      <div class="track" role="img" aria-label="Venta ${fmt(r.venta)}; mínimo ${fmt(CONFIG.equilibrioDia)}; promedio ${fmt(CONFIG.promedioDia)}">
+        <div class="fill" style="width:${pct(r.venta)}%;background:${ventaColor}"></div>
+        <div class="mark top" style="left:${pct(CONFIG.equilibrioDia)}%"><b>Mínimo ${fmt(CONFIG.equilibrioDia)}</b></div>
+        <div class="mark bot" style="left:${pct(CONFIG.promedioDia)}%"><b>Promedio ${fmt(CONFIG.promedioDia)}</b></div>
+      </div>
+      <p style="margin:0;font-weight:700">${ventaMsg}</p>
+    </div>
+
+    <div class="card">
+      <h3>Dónde quedó la venta</h3>
+      <div class="split" role="img" aria-label="En el cajón ${fmt(v.efectivo)}, en el banco ${fmt(r.banco)}">
+        <div style="width:${v.efectivo / tot * 100}%;background:var(--cash)"></div>
+        <div style="width:${r.banco / tot * 100}%;background:var(--bank)"></div>
+      </div>
+      <div class="legend">
+        <div><span class="dot" style="background:var(--cash)"></span>En el cajón ${fmt(v.efectivo)}</div>
+        <div><span class="dot" style="background:var(--bank)"></span>En el banco ${fmt(r.banco)}</div>
+      </div>
+      <p class="note">La plata del banco no se ve en la caja. Las tarjetas llegan con unos días de atraso y con descuento de comisión.</p>
+    </div>
+
+    <div class="card">
+      <h3>Lo que salió de la caja</h3>
+      <div class="lead">${fmt(r.sale)}</div>
+      <ul class="rows">
+        ${outs.map(([n,a]) => `<li><span>${n}</span><strong>${fmt(a)}</strong><div class="bar"><i style="width:${a/maxOut*100}%"></i></div></li>`).join('')}
+      </ul>
+      ${v.merc ? `<p class="note">Además se llevaron mercadería por ${fmt(v.merc)} (no sale de la caja).</p>` : ''}
+    </div>
+
+    <div class="card">
+      <h3>Ganancia aproximada del negocio hoy</h3>
+      <div class="lead" style="color:${r.ganancia >= 0 ? 'var(--green)' : 'var(--red)'}">${r.ganancia < 0 ? '−' : ''}${fmt(Math.abs(r.ganancia))}</div>
+      <p class="note">Referencia con el margen y gastos fijos promedio, antes de gastos personales. No sumar día a día para el mes.</p>
+    </div>
+
+    <button class="btn ghost" id="edit">Corregir números</button>
+    <button class="btn primary" id="nuevo" style="margin-top:10px">Nuevo cierre</button>
+  `;
+
+  document.getElementById('edit').addEventListener('click', () => toggle(false));
+  document.getElementById('nuevo').addEventListener('click', () => {
+    if (!confirm('¿Ya anotó los resultados en la hoja? Se borrarán los números de este cierre.')) return;
+    document.querySelectorAll('#groups input').forEach(i => i.value = '');
+    document.querySelectorAll('.field.missing').forEach(f => f.classList.remove('missing'));
+    document.getElementById('fecha').value = todayISO();
+    toggle(false);
+  });
+  toggle(true);
+}
+
+function toggle(showRes){
+  document.getElementById('formView').style.display = showRes ? 'none' : 'block';
+  document.getElementById('results').style.display = showRes ? 'block' : 'none';
+  window.scrollTo({top:0});
+}
+
+buildForm();
+</script>
+</body>
+</html>
