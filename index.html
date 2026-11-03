@@ -86,6 +86,12 @@ section.group.home{border-left-color:var(--amber)}
 .mark b{position:absolute;white-space:nowrap;font-size:.78rem;color:var(--muted);font-weight:700}
 .mark.top b{top:0;transform:translateX(-50%)}
 .mark.bot b{bottom:0;transform:translateX(-50%)}
+.band{position:absolute;top:-6px;bottom:-6px;background:var(--green-bg);border:2px solid var(--green);border-radius:6px;opacity:.85}
+.band b{position:absolute;bottom:-26px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:.78rem;color:var(--green);font-weight:700}
+.fill{z-index:1;height:10px;top:5px}
+.mark{z-index:2}
+.alerta{background:var(--red-bg);color:var(--red);border-radius:12px;padding:12px 14px;font-weight:700;margin-bottom:16px}
+.nojs{background:var(--red-bg);color:var(--red);border-radius:14px;padding:20px;font-weight:700;font-size:1.2rem;margin-bottom:20px}
 .split{display:flex;height:34px;border-radius:10px;overflow:hidden;margin:10px 0}
 .legend{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .legend div{display:flex;align-items:center;gap:8px;font-weight:700}
@@ -117,6 +123,7 @@ section.group.home{border-left-color:var(--amber)}
 </head>
 <body>
 <main>
+  <noscript><div class="nojs">Esta página no está funcionando aquí. Ábrala en Safari (iPhone) o en Chrome (Android).</div></noscript>
   <div id="formView">
     <h1>Cierre del día</h1>
     <p class="sub">Copie los números de la hoja. Solo números, sin puntos ni signos.</p>
@@ -141,20 +148,32 @@ section.group.home{border-left-color:var(--amber)}
 </main>
 
 <script>
-/* ===== Ajustes generales (cifras del mes analizado) ===== */
+/* ===== Ajustes generales (ambos almacenes juntos, mes analizado) ===== */
 const CONFIG_BASE = {
-  tolerancia: 2000,          // diferencia de caja que se considera "cuadra"
-  equilibrioDia: 134000,     // venta diaria mínima para no perder
-  promedioDia: 219000,       // venta diaria promedio del mes analizado
-  margenBruto: 1 - 3646270/6564290,              // ~44%
-  costoFijoDia: (1179390 + 95550 + 235000) / 30  // arriendo/otros + préstamo + IVA/PPM
+  tolerancia: 2000,       // diferencia de caja que se considera "cuadra"
+  alertaDif: 20000,       // sobre esta diferencia se pide revisar los números
+  margenBruto: 1 - 3646270/6564290,       // ~44%
+  costoFijoMes: 1179390 + 95550 + 235000, // arriendo/otros + préstamo + IVA/PPM
+  personalMes: 366940,                    // gastos personales del mes
+  diasMes: 30
 };
 
-/* Almacenes. En "ajustes" se pueden poner cifras propias, ej. {promedioDia: 150000} */
+/* Rango normal de venta diaria de cada almacén.
+   Los costos y el mínimo para vivir se reparten según el punto medio de cada rango. */
 const STORES = {
-  torres: {nombre:'Almacén Las Torres', ajustes:{}},
-  casa:   {nombre:'Almacén Casa', ajustes:{}}
+  torres: {nombre:'Almacén Las Torres', normalMin:170000, normalMax:260000},
+  casa:   {nombre:'Almacén Casa',       normalMin:35000,  normalMax:75000}
 };
+
+function buildConfig(k){
+  const mid = s => (s.normalMin + s.normalMax) / 2;
+  const total = Object.values(STORES).reduce((a, s) => a + mid(s), 0);
+  const share = mid(STORES[k]) / total;
+  const b = CONFIG_BASE;
+  const costoFijoDia = b.costoFijoMes / b.diasMes * share;
+  const minimoVivir = (b.costoFijoMes + b.personalMes) / b.diasMes * share / b.margenBruto;
+  return Object.assign({}, b, STORES[k], {share, costoFijoDia, minimoVivir});
+}
 
 const GROUPS = [
   {cls:'base', title:'Al abrir', fields:[
@@ -167,8 +186,8 @@ const GROUPS = [
     {k:'transf', label:'Transferencias recibidas'}
   ]},
   {cls:'out', title:'Lo que salió de la caja', tag:'Sale', fields:[
-    {k:'prov', label:'Pagos a proveedores'},
-    {k:'gastos', label:'Otros gastos del local', hint:'Gas, bolsas, arreglos, etc.'},
+    {k:'prov', label:'Pagos a proveedores', hint:'Solo lo pagado con plata del cajón. No transferencias.'},
+    {k:'gastos', label:'Otros gastos del local', hint:'Gas, bolsas, arreglos. Solo con plata del cajón.'},
     {k:'casa', label:'Plata sacada para la casa'}
   ]},
   {cls:'home', title:'Para la casa', tag:'No es plata', fields:[
@@ -179,7 +198,6 @@ const GROUPS = [
   ]}
 ];
 
-const LAST_STORE_KEY = 'almacen_tienda_actual';
 let tienda = null;
 let CONFIG = CONFIG_BASE;
 
@@ -224,16 +242,13 @@ function buildForm(){
   document.getElementById('fecha').value = todayISO();
   document.querySelectorAll('.store-pick button').forEach(b =>
     b.addEventListener('click', () => selectStore(b.dataset.store)));
-  let last = null; try{ last = localStorage.getItem(LAST_STORE_KEY); }catch(e){}
-  if (last && STORES[last]) selectStore(last);
 }
 
 function selectStore(k){
   tienda = k;
-  CONFIG = Object.assign({}, CONFIG_BASE, STORES[k].ajustes);
+  CONFIG = buildConfig(k);
   document.querySelectorAll('.store-pick button').forEach(b =>
     b.setAttribute('aria-pressed', b.dataset.store === k ? 'true' : 'false'));
-  try{ localStorage.setItem(LAST_STORE_KEY, k); }catch(e){}
   document.getElementById('err').textContent = '';
 }
 
@@ -270,7 +285,13 @@ document.getElementById('calc').addEventListener('click', () => {
   }
   err.textContent = '';
   const v = {}; allFields().forEach(f => v[f.k] = num(f.k));
-  showResults(document.getElementById('fecha').value || todayISO(), v, compute(v));
+  const r = compute(v);
+  if (r.esperada < 0){
+    err.textContent = 'Los números no calzan: salió más plata (' + fmt(r.sale) + ') de la que hubo en la caja (' + fmt(v.abre + v.efectivo) + '). Revise los pagos: los hechos por transferencia o con plata de otro lado no van aquí.';
+    document.getElementById('w_prov').scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  showResults(document.getElementById('fecha').value || todayISO(), v, r);
 });
 
 /* ===== Resultados ===== */
@@ -280,12 +301,18 @@ function showResults(fecha, v, r){
   else if (r.dif < 0){ cls='bad'; icon='✖'; what='Falta plata en la caja'; big = fmt(r.falta); }
   else { cls='warn'; icon='!'; what='Sobra plata en la caja'; big = fmt(r.sobra); }
 
-  const max = Math.max(r.venta, CONFIG.promedioDia) * 1.2;
+  const max = Math.max(r.venta, CONFIG.normalMax) * 1.15;
   const pct = x => Math.min(100, x / max * 100);
-  const ventaColor = r.venta >= CONFIG.equilibrioDia ? 'var(--green)' : 'var(--red)';
-  const ventaMsg = r.venta >= CONFIG.promedioDia ? 'Sobre el promedio del mes.'
-    : r.venta >= CONFIG.equilibrioDia ? 'Bajo el promedio, pero sobre el mínimo para no perder.'
-    : 'Bajo el mínimo para cubrir los gastos del día.';
+  let ventaColor, ventaMsg;
+  if (r.venta < CONFIG.minimoVivir){ ventaColor='var(--red)'; ventaMsg='Bajo lo necesario para cubrir los gastos y vivir.'; }
+  else if (r.venta < CONFIG.normalMin){ ventaColor='var(--amber)'; ventaMsg='Alcanza para cubrir gastos, pero es un día más flojo de lo normal.'; }
+  else if (r.venta <= CONFIG.normalMax){ ventaColor='var(--green)'; ventaMsg='Dentro de lo normal.'; }
+  else { ventaColor='var(--green)'; ventaMsg='Día mejor de lo normal.'; }
+  const alerta = Math.abs(r.dif) > CONFIG.alertaDif
+    ? `<div class="alerta">La diferencia de caja es muy grande. Revise los números antes de anotar: puede ser un error al escribir.</div>` : '';
+  const fueraDeRango = r.venta < CONFIG.normalMin / 2 || r.venta > CONFIG.normalMax * 2;
+  const alertaAlmacen = fueraDeRango
+    ? `<div class="alerta">¿Eligió el almacén correcto? Esta venta (${fmt(r.venta)}) es muy distinta a lo normal en ${esc(CONFIG.nombre)}. Si se equivocó, toque "Corregir números" y cambie el almacén.</div>` : '';
 
   const tot = r.venta || 1;
   const outs = [
@@ -305,6 +332,8 @@ function showResults(fecha, v, r){
       <div class="big">${big}</div>
       <div class="detail">Debería haber <b>${fmt(r.esperada)}</b> y contaron <b>${fmt(v.cierra)}</b>.</div>
     </div>
+    ${alertaAlmacen}
+    ${alerta}
 
     <div class="note-box">
       <h3>Anote en la hoja</h3>
@@ -322,12 +351,13 @@ function showResults(fecha, v, r){
     <div class="card">
       <h3>Venta del almacén</h3>
       <div class="lead">${fmt(r.venta)}</div>
-      <div class="track" role="img" aria-label="Venta ${fmt(r.venta)}; mínimo ${fmt(CONFIG.equilibrioDia)}; promedio ${fmt(CONFIG.promedioDia)}">
+      <div class="track" role="img" aria-label="Venta ${fmt(r.venta)}; mínimo para vivir ${fmt(CONFIG.minimoVivir)}; normal entre ${fmt(CONFIG.normalMin)} y ${fmt(CONFIG.normalMax)}">
+        <div class="band" style="left:${pct(CONFIG.normalMin)}%;width:${pct(CONFIG.normalMax) - pct(CONFIG.normalMin)}%"><b>Normal</b></div>
         <div class="fill" style="width:${pct(r.venta)}%;background:${ventaColor}"></div>
-        <div class="mark top" style="left:${pct(CONFIG.equilibrioDia)}%"><b>Mínimo ${fmt(CONFIG.equilibrioDia)}</b></div>
-        <div class="mark bot" style="left:${pct(CONFIG.promedioDia)}%"><b>Promedio ${fmt(CONFIG.promedioDia)}</b></div>
+        <div class="mark top" style="left:${pct(CONFIG.minimoVivir)}%"><b>Mínimo para vivir ${fmt(CONFIG.minimoVivir)}</b></div>
       </div>
       <p style="margin:0;font-weight:700">${ventaMsg}</p>
+      <p class="note">Normal para este almacén: entre ${fmt(CONFIG.normalMin)} y ${fmt(CONFIG.normalMax)} al día.</p>
     </div>
 
     <div class="card">
@@ -355,7 +385,7 @@ function showResults(fecha, v, r){
     <div class="card">
       <h3>Ganancia aproximada del negocio hoy</h3>
       <div class="lead" style="color:${r.ganancia >= 0 ? 'var(--green)' : 'var(--red)'}">${r.ganancia < 0 ? '−' : ''}${fmt(Math.abs(r.ganancia))}</div>
-      <p class="note">Referencia con el margen y gastos fijos promedio, antes de gastos personales. No sumar día a día para el mes.</p>
+      <p class="note">Referencia con el margen promedio y la parte de los gastos fijos que le toca a este almacén, antes de gastos personales. No sumar día a día para el mes.</p>
     </div>
 
     <button class="btn ghost" id="edit">Corregir números</button>
@@ -368,6 +398,8 @@ function showResults(fecha, v, r){
     document.querySelectorAll('#groups input').forEach(i => i.value = '');
     document.querySelectorAll('.field.missing').forEach(f => f.classList.remove('missing'));
     document.getElementById('fecha').value = todayISO();
+    tienda = null;
+    document.querySelectorAll('.store-pick button').forEach(b => b.setAttribute('aria-pressed', 'false'));
     toggle(false);
   });
   toggle(true);
